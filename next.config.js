@@ -1,4 +1,4 @@
-// next.config.js - FULL VERSION
+// next.config.js - FULL FIXED
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -11,14 +11,32 @@ const nextConfig = {
     serverComponentsExternalPackages: ['jszip'],
   },
   
-  webpack: (config) => {
+  // OPTIMASI FONT - MATIKAN PRELOAD FONT UNTUK MENGATASI ERROR
+  optimizeFonts: false,
+  
+  webpack: (config, { isServer }) => {
+    // Fallback untuk module Node.js
     config.resolve.fallback = {
       ...config.resolve.fallback,
       buffer: require.resolve('buffer/'),
       fs: false,
       path: false,
       crypto: false,
+      stream: false,
+      http: false,
+      https: false,
+      zlib: false,
     };
+    
+    // Aturan untuk file font
+    config.module.rules.push({
+      test: /\.(woff|woff2|eot|ttf|otf)$/,
+      type: 'asset/resource',
+      generator: {
+        filename: 'static/media/[name].[hash][ext]',
+      },
+    });
+    
     return config;
   },
   
@@ -36,18 +54,13 @@ const nextConfig = {
     ];
   },
   
-  // Kompresi untuk performa
   compress: true,
-  
-  // Optimasi gambar
   swcMinify: true,
   
-  // Konfigurasi ESLint
   eslint: {
     ignoreDuringBuilds: true,
   },
   
-  // Konfigurasi TypeScript
   typescript: {
     ignoreBuildErrors: true,
   },
