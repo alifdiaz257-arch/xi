@@ -1,6 +1,7 @@
+// src/app/scraper/page.js - FIXED
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function ScraperPage() {
@@ -17,7 +18,15 @@ export default function ScraperPage() {
   const [folderView, setFolderView] = useState([]);
   const [currentFile, setCurrentFile] = useState('Menunggu...');
   const [fileStatus, setFileStatus] = useState('⏳');
+  const [error, setError] = useState('');
   const videoRef = useRef(null);
+
+  // Video autoplay
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, []);
 
   const addLog = (message, type = 'info') => {
     const time = new Date().toLocaleTimeString();
@@ -27,6 +36,7 @@ export default function ScraperPage() {
   const handleScrape = async () => {
     if (!url) {
       addLog('Masukkan URL!', 'err');
+      setError('Masukkan URL!');
       return;
     }
 
@@ -35,6 +45,7 @@ export default function ScraperPage() {
       validUrl = new URL(url).href;
     } catch {
       addLog('URL tidak valid!', 'err');
+      setError('URL tidak valid!');
       return;
     }
 
@@ -43,6 +54,7 @@ export default function ScraperPage() {
     setLog([]);
     setZipData(null);
     setShowPopup(false);
+    setError('');
     addLog('🚀 Mulai Scrape: ' + validUrl, 'info');
 
     try {
@@ -64,6 +76,7 @@ export default function ScraperPage() {
       setProgress(80);
       addLog('✅ Scraping selesai! ' + data.fileCount + ' file ditemukan', 'ok');
 
+      // Convert base64 to blob
       const byteCharacters = atob(data.zip);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -91,7 +104,13 @@ export default function ScraperPage() {
             if (i < parts.length - 1) {
               current += (current ? '/' : '') + p;
               if (!folders[current]) {
-                folders[current] = { name: p + '/', path: current + '/', type: 'folder', size: 0, depth: current.split('/').length - 1 };
+                folders[current] = { 
+                  name: p + '/', 
+                  path: current + '/', 
+                  type: 'folder', 
+                  size: 0, 
+                  depth: current.split('/').length - 1 
+                };
               }
             }
           });
@@ -105,7 +124,9 @@ export default function ScraperPage() {
       }
 
     } catch (err) {
+      console.error('Scrape error:', err);
       addLog('❌ Error: ' + err.message, 'err');
+      setError(err.message || 'Terjadi kesalahan saat scraping');
       setProgress(0);
     } finally {
       setLoading(false);
@@ -134,6 +155,7 @@ export default function ScraperPage() {
     setTotalFiles(0);
     setCurrentFile('Menunggu...');
     setFileStatus('⏳');
+    setError('');
     addLog('🧹 Dibersihkan', 'info');
   };
 
@@ -144,12 +166,28 @@ export default function ScraperPage() {
     return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !loading) {
+      handleScrape();
+    }
+  };
+
   return (
     <div className="max-w-[1100px] w-full mx-auto px-5 pb-10 pt-20 relative z-[1]">
       <div className="flex flex-col gap-4">
         <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-[#8892a0] text-[0.75rem] font-semibold transition-all duration-250 hover:bg-white/10 hover:text-white hover:-translate-x-1 w-fit">
           <i className="fas fa-arrow-left text-[0.8rem]"></i> Kembali
         </Link>
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-[#f87171] text-[0.85rem] flex items-center gap-2.5">
+            <i className="fas fa-exclamation-circle"></i>
+            <span>{error}</span>
+            <button className="ml-auto text-[#f87171]/60 hover:text-[#f87171] text-sm" onClick={() => setError('')}>
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+        )}
 
         <div className="bg-[rgba(18,22,36,0.75)] backdrop-blur-[16px] rounded-2xl border border-white/5 p-5 transition-all duration-250 hover:border-purple-500/15">
           <div className="flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.08em] text-[#8892a0] font-bold opacity-50 mb-2.5">
@@ -167,7 +205,7 @@ export default function ScraperPage() {
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleScrape()}
+              onKeyDown={handleKeyDown}
               placeholder="https://example.com"
               className="flex-1 min-w-[180px] px-4 py-2.5 bg-transparent border-none text-white text-[0.85rem] font-semibold outline-none placeholder:text-[#8892a0] placeholder:opacity-30"
               disabled={loading}
@@ -202,7 +240,7 @@ export default function ScraperPage() {
 
           <div className="flex justify-between mt-1.5 text-[0.6rem] font-semibold text-[#8892a0] opacity-50">
             <span>{loading ? 'Memproses...' : 'Menunggu...'}</span>
-            <span>{progress}%</span>
+            <span>{Math.round(progress)}%</span>
           </div>
 
           <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg border border-white/5 mt-2 text-[0.65rem] text-[#8892a0] font-medium min-h-[32px]">
@@ -231,16 +269,16 @@ export default function ScraperPage() {
               </>
             ) : (
               folderView.map((f, i) => {
-                const indent = f.depth ? 'pl-' + (f.depth * 1.2 + 0.5) + 'rem' : '';
-                let icon = '';
-                let color = '';
+                const indent = f.depth ? 'pl-' + Math.min(f.depth * 4, 12) : '';
+                let icon = 'fa-file';
+                let color = 'text-[#8892a0]';
                 if (f.type === 'folder') {
                   icon = 'fa-folder';
                   color = 'text-[#60a5fa]';
                 } else if (f.type === 'html') {
                   icon = 'fa-html5';
                   color = 'text-[#e34f26]';
-                } else if (f.type === 'css') {
+                } else if (f.type === 'css' || f.type === 'style') {
                   icon = 'fa-css3-alt';
                   color = 'text-[#264de4]';
                 } else if (f.type === 'script') {
@@ -270,9 +308,6 @@ export default function ScraperPage() {
                 } else if (f.type === 'txt') {
                   icon = 'fa-file-alt';
                   color = 'text-[#94a3b8]';
-                } else {
-                  icon = 'fa-file';
-                  color = 'text-[#8892a0]';
                 }
                 return (
                   <div key={i} className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[#8892a0] font-semibold hover:bg-white/5 ${indent}`}>
@@ -385,10 +420,14 @@ export default function ScraperPage() {
           to { opacity: 1; transform: scale(1); }
         }
         .word-break-break-all { word-break: break-all; }
-        .pl-\\[1\\.2rem\\] { padding-left: 1.2rem; }
-        .pl-\\[2\\.4rem\\] { padding-left: 2.4rem; }
-        .pl-\\[3\\.6rem\\] { padding-left: 3.6rem; }
-        .pl-\\[4\\.8rem\\] { padding-left: 4.8rem; }
+        .pl-4 { padding-left: 1rem; }
+        .pl-8 { padding-left: 2rem; }
+        .pl-12 { padding-left: 3rem; }
+        .pl-16 { padding-left: 4rem; }
+        .pl-20 { padding-left: 5rem; }
+        .pl-24 { padding-left: 6rem; }
+        .pl-28 { padding-left: 7rem; }
+        .pl-32 { padding-left: 8rem; }
       `}</style>
     </div>
   );
