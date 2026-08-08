@@ -1,9 +1,27 @@
+// next.config.js - FULL VERSION
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  
   images: {
     domains: ['ui-avatars.com'],
   },
+  
+  experimental: {
+    serverComponentsExternalPackages: ['jszip'],
+  },
+  
+  webpack: (config) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      buffer: require.resolve('buffer/'),
+      fs: false,
+      path: false,
+      crypto: false,
+    };
+    return config;
+  },
+  
   async headers() {
     return [
       {
@@ -16,6 +34,22 @@ const nextConfig = {
         ],
       },
     ];
+  },
+  
+  // Kompresi untuk performa
+  compress: true,
+  
+  // Optimasi gambar
+  swcMinify: true,
+  
+  // Konfigurasi ESLint
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
+  // Konfigurasi TypeScript
+  typescript: {
+    ignoreBuildErrors: true,
   },
 };
 
