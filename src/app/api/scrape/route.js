@@ -1,5 +1,7 @@
-// src/app/api/scrape/route.js - FIXED (Tanpa DOMParser)
-export const runtime = 'edge';
+// src/app/api/scrape/route.js - FIXED
+// Ganti runtime menjadi nodejs
+
+export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const PROXIES = [
@@ -176,9 +178,7 @@ function resolveUrl(src, baseUrl) {
   }
 }
 
-// ============================================================
-// EKSTRAK URL DARI HTML TANPA DOMParser
-// ============================================================
+// Extract URLs dari HTML tanpa DOMParser
 function extractUrlsFromHtml(html, baseUrl) {
   const foundUrls = new Set();
   const baseOrigin = new URL(baseUrl).origin;
@@ -192,7 +192,6 @@ function extractUrlsFromHtml(html, baseUrl) {
     if (val && !val.startsWith('data:') && !val.startsWith('javascript:') && !val.startsWith('#') && 
         !val.startsWith('mailto:') && !val.startsWith('tel:') && !val.startsWith('blob:')) {
       
-      // Handle srcset
       if (match[0].startsWith('srcset') || match[0].startsWith('data-srcset')) {
         const urls = val.split(',').map(s => s.trim().split(' ')[0]);
         urls.forEach(u => {
@@ -206,7 +205,6 @@ function extractUrlsFromHtml(html, baseUrl) {
       } else {
         const resolved = resolveUrl(val, baseUrl);
         if (resolved && resolved.startsWith(baseOrigin)) {
-          // Cek ekstensi file yang valid
           const ext = resolved.split('.').pop().toLowerCase();
           const validExts = ['jpg','jpeg','png','gif','webp','avif','bmp','ico','tiff','svg','css','js','json','xml','txt',
                             'pdf','zip','rar','7z','tar','gz','mp4','webm','ogg','mov','avi','mkv','mp3','wav','aac','flac',
@@ -232,7 +230,7 @@ function extractUrlsFromHtml(html, baseUrl) {
     }
   }
 
-  // Regex untuk tag <link rel="stylesheet" href="...">
+  // Regex untuk tag <link>
   const linkRegex = /<link[^>]*rel=["'](?:stylesheet|icon|apple-touch-icon|preload|manifest)["'][^>]*href=["']([^"']+)["']/gi;
   let linkMatch;
   while ((linkMatch = linkRegex.exec(html)) !== null) {
@@ -245,7 +243,7 @@ function extractUrlsFromHtml(html, baseUrl) {
     }
   }
 
-  // Regex untuk tag <script src="...">
+  // Regex untuk tag <script>
   const scriptRegex = /<script[^>]*src=["']([^"']+)["']/gi;
   let scriptMatch;
   while ((scriptMatch = scriptRegex.exec(html)) !== null) {
@@ -258,7 +256,7 @@ function extractUrlsFromHtml(html, baseUrl) {
     }
   }
 
-  // Regex untuk tag <img src="...">
+  // Regex untuk tag <img>
   const imgRegex = /<img[^>]*src=["']([^"']+)["']/gi;
   let imgMatch;
   while ((imgMatch = imgRegex.exec(html)) !== null) {
@@ -271,7 +269,7 @@ function extractUrlsFromHtml(html, baseUrl) {
     }
   }
 
-  // Regex untuk tag <video src="...">, <audio src="...">
+  // Regex untuk tag <video>, <audio>
   const mediaRegex = /<(?:video|audio)[^>]*src=["']([^"']+)["']/gi;
   let mediaMatch;
   while ((mediaMatch = mediaRegex.exec(html)) !== null) {
@@ -284,7 +282,7 @@ function extractUrlsFromHtml(html, baseUrl) {
     }
   }
 
-  // Regex untuk tag <source src="...">
+  // Regex untuk tag <source>
   const sourceRegex = /<source[^>]*src=["']([^"']+)["']/gi;
   let sourceMatch;
   while ((sourceMatch = sourceRegex.exec(html)) !== null) {
@@ -297,7 +295,7 @@ function extractUrlsFromHtml(html, baseUrl) {
     }
   }
 
-  // Regex untuk tag <iframe src="...">
+  // Regex untuk tag <iframe>
   const iframeRegex = /<iframe[^>]*src=["']([^"']+)["']/gi;
   let iframeMatch;
   while ((iframeMatch = iframeRegex.exec(html)) !== null) {
@@ -310,7 +308,6 @@ function extractUrlsFromHtml(html, baseUrl) {
     }
   }
 
-  // Tambahkan URL utama
   foundUrls.add(baseUrl);
 
   return [...foundUrls];
@@ -321,20 +318,23 @@ export async function POST(req) {
     const { url } = await req.json();
 
     if (!url) {
-      return Response.json({ error: 'URL diperlukan' }, { status: 400 });
+      return new Response(JSON.stringify({ error: 'URL diperlukan' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     let validUrl;
     try {
       validUrl = new URL(url).href;
     } catch {
-      return Response.json({ error: 'URL tidak valid' }, { status: 400 });
+      return new Response(JSON.stringify({ error: 'URL tidak valid' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     const html = await fetchHtml(validUrl);
-    const baseOrigin = new URL(validUrl).origin;
-
-    // Extract URLs dari HTML tanpa DOMParser
     const foundUrls = extractUrlsFromHtml(html, validUrl);
     const uniqueAssets = foundUrls.slice(0, 300);
 
@@ -347,7 +347,6 @@ export async function POST(req) {
     let downloaded = 0;
     const total = uniqueAssets.length;
 
-    // Download semua asset
     for (const assetUrl of uniqueAssets) {
       try {
         const blob = await fetchAsset(assetUrl);
@@ -364,16 +363,16 @@ export async function POST(req) {
       }
     }
 
-    // Tambahkan index.html
     zip.file('index.html', html);
     fileData.push({ name: 'index.html', path: 'index.html', type: 'html', size: html.length });
 
     const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
     const sizeStr = (zipBlob.size / 1024).toFixed(1) + ' KB';
 
-    const zipBase64 = Buffer.from(await zipBlob.arrayBuffer()).toString('base64');
+    const arrayBuffer = await zipBlob.arrayBuffer();
+    const zipBase64 = Buffer.from(arrayBuffer).toString('base64');
 
-    return Response.json({
+    return new Response(JSON.stringify({
       success: true,
       zip: zipBase64,
       fileName: domain + '_' + new Date().toISOString().slice(0,10) + '.zip',
@@ -381,13 +380,19 @@ export async function POST(req) {
       failedCount: failed.length,
       size: sizeStr,
       files: fileData,
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Scrape error:', error);
-    return Response.json({
+    return new Response(JSON.stringify({
       success: false,
       error: error.message || 'Terjadi kesalahan saat scraping',
-    }, { status: 500 });
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
