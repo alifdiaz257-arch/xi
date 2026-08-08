@@ -1,17 +1,21 @@
+// src/app/layout.js - FIXED
 import './globals.css'
 import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google'
-import Script from 'next/script'
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-body',
+  weight: ['400', '500', '600', '700', '800'],
   display: 'swap',
+  preload: true,
 })
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
   variable: '--font-head',
+  weight: ['400', '500', '600', '700', '800'],
   display: 'swap',
+  preload: true,
 })
 
 export const metadata = {
@@ -37,8 +41,6 @@ export default function RootLayout({ children }) {
     <html lang="id" className={`${plusJakarta.variable} ${spaceGrotesk.variable}`}>
       <head>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-        <Script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" strategy="beforeInteractive" />
-        <Script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" strategy="beforeInteractive" />
       </head>
       <body>{children}</body>
     </html>
