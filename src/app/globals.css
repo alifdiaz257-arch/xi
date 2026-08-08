@@ -1,3 +1,4 @@
+/* src/app/globals.css - FIXED */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,8 +12,8 @@
   --accent: #f472b6;
   --text-main: #f1f3f5;
   --text-muted: #8892a0;
-  --font-head: 'Space Grotesk', sans-serif;
-  --font-body: 'Plus Jakarta Sans', sans-serif;
+  --font-head: 'Space Grotesk', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   --glass-blur: blur(16px);
   --success: #4ade80;
   --danger: #ef4444;
@@ -32,6 +33,15 @@ body {
   font-weight: 500;
   overflow-x: hidden;
   min-height: 100vh;
+}
+
+/* Font fallback untuk mencegah error */
+.font-head {
+  font-family: var(--font-head);
+}
+
+.font-body {
+  font-family: var(--font-body);
 }
 
 ::-webkit-scrollbar { width: 4px; }
